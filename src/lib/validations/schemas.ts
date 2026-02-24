@@ -1,6 +1,22 @@
+/**
+ * Zod validation schemas for API request bodies.
+ *
+ * TODO: Wire up to API routes. These schemas are currently placeholders
+ * providing the validation infrastructure. Integration into route handlers
+ * will be done in a future PR.
+ *
+ * @example
+ * // Future usage in API route:
+ * import { projectUpdateSchema } from "@/lib/validations/schemas";
+ *
+ * const body = projectUpdateSchema.parse(await req.json());
+ * // Now `body` is validated and type-safe
+ */
+
 import { z } from "zod";
 
 // --- File size ---
+// TODO: Use in upload routes to reject oversized files
 export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
 // --- Project ---
