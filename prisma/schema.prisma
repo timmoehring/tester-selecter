@@ -1,0 +1,289 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  CPM
+}
+
+enum ProjectStatus {
+  DRAFT
+  UPLOADED
+  MAPPED
+  SOLVED
+  REVIEWING
+  COMPLETED
+}
+
+enum RequirementType {
+  HARD
+  SOFT
+}
+
+enum SelectionStatus {
+  SELECTED
+  APPROVED
+  REJECTED
+  CONSIDER
+  BACKUP
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  passwordHash  String
+  role          Role      @default(CPM)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+  projects Project[]
+
+  @@map("users")
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  status      ProjectStatus @default(DRAFT)
+  targetCount Int           @default(50)
+  surplusCount Int          @default(5)
+  backupCount  Int          @default(20)
+  userId      String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  user               User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requirements       Requirement[]
+  segmentations      Segmentation[]
+  surveyQuestions    SurveyQuestion[]
+  questionMappings   QuestionMapping[]
+  testerApplicants   TesterApplicant[]
+  testerSelections   TesterSelection[]
+  activeTestAssignments ActiveTestAssignment[]
+  recruitmentSession RecruitmentSession?
+
+  @@map("projects")
+}
+
+model Requirement {
+  id             String          @id @default(cuid())
+  projectId      String
+  name           String
+  description    String?
+  type           RequirementType
+  acceptedValues String[]
+  weight         Float           @default(1.0)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  project          Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  questionMappings QuestionMapping[]
+
+  @@map("requirements")
+}
+
+model Segmentation {
+  id               String   @id @default(cuid())
+  projectId        String
+  name             String
+  targetPercentages Json
+  tolerance        Float    @default(5.0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  project          Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  questionMappings QuestionMapping[]
+
+  @@map("segmentations")
+}
+
+model SurveyQuestion {
+  id            String   @id @default(cuid())
+  projectId     String
+  questionText  String
+  questionType  String   @default("text")
+  detectedOptions String[]
+  columnIndex   Int
+  createdAt     DateTime @default(now())
+
+  project          Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  questionMappings QuestionMapping[]
+  surveyResponses  SurveyResponse[]
+
+  @@map("survey_questions")
+}
+
+model QuestionMapping {
+  id               String  @id @default(cuid())
+  projectId        String
+  surveyQuestionId String
+  requirementId    String?
+  segmentationId   String?
+  confidence       Float   @default(0.0)
+  isConfirmed      Boolean @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  project        Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  surveyQuestion SurveyQuestion @relation(fields: [surveyQuestionId], references: [id], onDelete: Cascade)
+  requirement    Requirement?   @relation(fields: [requirementId], references: [id], onDelete: SetNull)
+  segmentation   Segmentation?  @relation(fields: [segmentationId], references: [id], onDelete: SetNull)
+
+  @@map("question_mappings")
+}
+
+model TesterApplicant {
+  id              String   @id @default(cuid())
+  projectId       String
+  username        String
+  email           String
+  communityScore  Float    @default(0.0)
+  rawResponses    Json
+  tgtbtExtreme    Boolean  @default(false)
+  tgtbtOutlier    Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  project          Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  surveyResponses  SurveyResponse[]
+  testerSelection  TesterSelection?
+
+  @@unique([projectId, email])
+  @@map("tester_applicants")
+}
+
+model SurveyResponse {
+  id               String @id @default(cuid())
+  testerId         String
+  surveyQuestionId String
+  responseValue    String
+  normalizedValue  String?
+
+  tester         TesterApplicant @relation(fields: [testerId], references: [id], onDelete: Cascade)
+  surveyQuestion SurveyQuestion  @relation(fields: [surveyQuestionId], references: [id], onDelete: Cascade)
+
+  @@unique([testerId, surveyQuestionId])
+  @@map("survey_responses")
+}
+
+model TesterSelection {
+  id             String          @id @default(cuid())
+  projectId      String
+  testerId       String          @unique
+  status         SelectionStatus @default(SELECTED)
+  sentimentGrade String?
+  sentimentNote  String?
+  reviewNotes    String?
+  solverScore    Float?
+  rank           Int?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  project Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tester  TesterApplicant @relation(fields: [testerId], references: [id], onDelete: Cascade)
+
+  @@map("tester_selections")
+}
+
+model BlocklistEntry {
+  id        String   @id @default(cuid())
+  email     String?
+  username  String?
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@map("blocklist_entries")
+}
+
+model GoldenTicketEntry {
+  id            String @id @default(cuid())
+  email         String?
+  username      String?
+  priorityLevel Int    @default(1)
+  reason        String?
+  createdAt     DateTime @default(now())
+
+  @@map("golden_ticket_entries")
+}
+
+model ActiveTestAssignment {
+  id         String @id @default(cuid())
+  projectId  String
+  email      String
+  username   String?
+  testName   String?
+  createdAt  DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, email])
+  @@map("active_test_assignments")
+}
+
+model RecruitmentSession {
+  id              String   @id @default(cuid())
+  projectId       String   @unique
+  currentStep     String   @default("upload")
+  lastReviewedTesterId String?
+  reviewProgress  Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("recruitment_sessions")
+}
