@@ -1,3 +1,21 @@
+/**
+ * In-memory rate limiter for API endpoints.
+ *
+ * TODO: Wire up to API routes. This module is currently a placeholder
+ * providing the rate limiting infrastructure. Integration into routes
+ * (especially /api/projects/[projectId]/sentiment and /solve) will be
+ * done in a future PR.
+ *
+ * @example
+ * // Future usage in API route:
+ * import { rateLimit } from "@/lib/rate-limit";
+ *
+ * const { success } = rateLimit(session.user.id, 10, 60_000);
+ * if (!success) {
+ *   return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+ * }
+ */
+
 interface RateLimitEntry {
   count: number;
   resetAt: number;
