@@ -12,6 +12,7 @@ function makeTester(overrides: Partial<TesterData> = {}): TesterData {
     tgtbtOutlier: false,
     responses: {},
     isBlocklisted: false,
+    isScreeningExcluded: false,
     isGoldenTicket: false,
     goldenTicketPriority: 0,
     activeTestCount: 0,

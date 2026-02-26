@@ -4,6 +4,7 @@ const steps = [
   { key: "upload", label: "Upload Data" },
   { key: "requirements", label: "Requirements" },
   { key: "mapping", label: "Map Questions" },
+  { key: "screening", label: "Screening" },
   { key: "selection", label: "Run Selection" },
   { key: "review", label: "Review Testers" },
   { key: "export", label: "Export" },

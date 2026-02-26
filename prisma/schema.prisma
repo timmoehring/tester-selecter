@@ -34,6 +34,13 @@ enum SelectionStatus {
   BACKUP
 }
 
+enum ScreeningFlag {
+  FAKE_NAME
+  LOW_EFFORT
+  DUPLICATE_PATTERN
+  GENERIC_RESPONSE
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -115,6 +122,7 @@ model Project {
   testerApplicants   TesterApplicant[]
   testerSelections   TesterSelection[]
   activeTestAssignments ActiveTestAssignment[]
+  testerScreeningFlags TesterScreeningFlag[]
   recruitmentSession RecruitmentSession?
 
   @@map("projects")
@@ -188,19 +196,21 @@ model QuestionMapping {
 }
 
 model TesterApplicant {
-  id              String   @id @default(cuid())
-  projectId       String
-  username        String
-  email           String
-  communityScore  Float    @default(0.0)
-  rawResponses    Json
-  tgtbtExtreme    Boolean  @default(false)
-  tgtbtOutlier    Boolean  @default(false)
-  createdAt       DateTime @default(now())
+  id                 String   @id @default(cuid())
+  projectId          String
+  username           String
+  email              String
+  communityScore     Float    @default(0.0)
+  rawResponses       Json
+  tgtbtExtreme       Boolean  @default(false)
+  tgtbtOutlier       Boolean  @default(false)
+  screeningExcluded  Boolean  @default(false)
+  createdAt          DateTime @default(now())
 
-  project          Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  surveyResponses  SurveyResponse[]
-  testerSelection  TesterSelection?
+  project            Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  surveyResponses    SurveyResponse[]
+  testerSelection    TesterSelection?
+  screeningFlags     TesterScreeningFlag[]
 
   @@unique([projectId, email])
   @@map("tester_applicants")
@@ -272,6 +282,22 @@ model ActiveTestAssignment {
 
   @@unique([projectId, email])
   @@map("active_test_assignments")
+}
+
+model TesterScreeningFlag {
+  id        String        @id @default(cuid())
+  projectId String
+  testerId  String
+  flag      ScreeningFlag
+  reason    String
+  excluded  Boolean       @default(false)
+  createdAt DateTime      @default(now())
+
+  project Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tester  TesterApplicant @relation(fields: [testerId], references: [id], onDelete: Cascade)
+
+  @@unique([testerId, flag])
+  @@map("tester_screening_flags")
 }
 
 model RecruitmentSession {

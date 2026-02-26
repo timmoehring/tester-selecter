@@ -31,6 +31,20 @@ export async function POST(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  // Guard: ensure screening step is completed
+  const recruitmentSession = await prisma.recruitmentSession.findUnique({
+    where: { projectId },
+  });
+  if (
+    recruitmentSession?.currentStep === "screening" ||
+    recruitmentSession?.currentStep === "mapping"
+  ) {
+    return NextResponse.json(
+      { error: "Please complete the screening step first" },
+      { status: 400 }
+    );
+  }
+
   // Load global blocklist and golden tickets
   const [blocklistEntries, goldenTicketEntries] = await Promise.all([
     prisma.blocklistEntry.findMany(),

@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { WorkflowSteps } from "@/components/layout/workflow-steps";
+import { TagInput } from "@/components/ui/tag-input";
 
 interface Requirement {
   name: string;
@@ -180,20 +181,12 @@ export default function RequirementsPage({
                   />
 
                   <div className="flex items-center gap-3">
-                    <input
-                      value={req.acceptedValues.join(", ")}
-                      onChange={(e) =>
-                        updateRequirement(
-                          i,
-                          "acceptedValues",
-                          e.target.value
-                            .split(",")
-                            .map((v) => v.trim())
-                            .filter(Boolean)
-                        )
+                    <TagInput
+                      values={req.acceptedValues}
+                      onChange={(vals) =>
+                        updateRequirement(i, "acceptedValues", vals)
                       }
-                      placeholder="Accepted values (comma-separated)"
-                      className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm outline-none focus:border-primary"
+                      placeholder="Type a value and press Enter"
                     />
                     {req.type === "SOFT" && (
                       <div className="flex items-center gap-1">

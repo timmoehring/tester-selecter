@@ -117,7 +117,7 @@ export default function MappingPage({
     });
 
     if (res.ok) {
-      router.push(`/dashboard/projects/${projectId}/selection`);
+      router.push(`/dashboard/projects/${projectId}/screening`);
     } else {
       alert("Failed to save mappings");
       setSaving(false);
