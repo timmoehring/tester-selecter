@@ -44,31 +44,38 @@ export default function ScreeningPage({
   const [flaggedTesters, setFlaggedTesters] = useState<FlaggedTester[]>([]);
   const [totalApplicants, setTotalApplicants] = useState(0);
   const [loaded, setLoaded] = useState(false);
+  const [hasRun, setHasRun] = useState(false);
   const [decisions, setDecisions] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     loadScreeningResults();
   }, [projectId]);
 
-  async function loadScreeningResults() {
+  async function loadScreeningResults(): Promise<FlaggedTester[]> {
+    let testers: FlaggedTester[] = [];
     const res = await fetch(`/api/projects/${projectId}/screening`);
     if (res.ok) {
       const data = await res.json();
-      setFlaggedTesters(data.flaggedTesters || []);
+      testers = data.flaggedTesters || [];
+      setFlaggedTesters(testers);
       setTotalApplicants(data.totalApplicants || 0);
+
+      // Existing flags are proof screening has already run for this project.
+      if (testers.length > 0) {
+        setHasRun(true);
+      }
 
       // Initialize decisions from existing data
       const initial: Record<string, boolean> = {};
-      for (const tester of data.flaggedTesters || []) {
+      for (const tester of testers) {
         // Default to excluded for flagged testers
-        const anyExcluded = tester.flags.some(
-          (f: FlagData) => f.excluded
-        );
+        const anyExcluded = tester.flags.some((f: FlagData) => f.excluded);
         initial[tester.testerId] = anyExcluded;
       }
       setDecisions(initial);
     }
     setLoaded(true);
+    return testers;
   }
 
   async function runScreening() {
@@ -78,13 +85,15 @@ export default function ScreeningPage({
     });
 
     if (res.ok) {
-      await loadScreeningResults();
-      // Default all flagged testers to excluded
+      const testers = await loadScreeningResults();
+      // Default all flagged testers to excluded. Uses the freshly loaded list
+      // rather than the `flaggedTesters` state, which is still stale here.
       const newDecisions: Record<string, boolean> = {};
-      for (const tester of flaggedTesters) {
+      for (const tester of testers) {
         newDecisions[tester.testerId] = true;
       }
       setDecisions(newDecisions);
+      setHasRun(true);
     }
     setScreening(false);
   }
@@ -143,7 +152,6 @@ export default function ScreeningPage({
   }
 
   const hasResults = flaggedTesters.length > 0;
-  const hasRun = loaded && totalApplicants > 0 && flaggedTesters !== null;
 
   return (
     <div>
@@ -193,7 +201,7 @@ export default function ScreeningPage({
                 )}
               </button>
 
-              {hasRun && (
+              {totalApplicants > 0 && (
                 <button
                   onClick={skipAndContinue}
                   disabled={saving}
@@ -204,7 +212,7 @@ export default function ScreeningPage({
               )}
             </div>
 
-            {loaded && totalApplicants > 0 && flaggedTesters.length === 0 && (
+            {hasRun && totalApplicants > 0 && flaggedTesters.length === 0 && (
               <div className="mt-6 rounded-lg border border-success/30 bg-success/10 p-4">
                 <p className="text-sm font-medium text-success">
                   No suspicious testers detected. All clear!
@@ -227,8 +235,7 @@ export default function ScreeningPage({
                 <span className="font-semibold text-warning">
                   {flaggedTesters.length}
                 </span>{" "}
-                of{" "}
-                <span className="font-semibold">{totalApplicants}</span>{" "}
+                of <span className="font-semibold">{totalApplicants}</span>{" "}
                 testers flagged
               </p>
               <div className="flex gap-2">
@@ -263,9 +270,7 @@ export default function ScreeningPage({
                   >
                     <div className="mb-2 flex items-start justify-between">
                       <div>
-                        <p className="text-sm font-medium">
-                          {tester.username}
-                        </p>
+                        <p className="text-sm font-medium">{tester.username}</p>
                         <p className="text-xs text-muted-foreground">
                           {tester.email}
                         </p>
@@ -310,7 +315,8 @@ export default function ScreeningPage({
                         <span
                           key={i}
                           className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                            FLAG_COLORS[f.flag] || "bg-muted text-muted-foreground"
+                            FLAG_COLORS[f.flag] ||
+                            "bg-muted text-muted-foreground"
                           }`}
                         >
                           {FLAG_LABELS[f.flag] || f.flag}

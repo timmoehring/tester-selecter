@@ -5,7 +5,7 @@ import { runScreening, type TesterInput } from "@/lib/analysis/screening";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ projectId: string }> }
+  { params }: { params: Promise<{ projectId: string }> },
 ) {
   const session = await auth();
   if (!session?.user) {
@@ -60,10 +60,11 @@ export async function POST(
     result.flags.map((f) => ({
       projectId,
       testerId: result.testerId,
-      flag: f.flag as "FAKE_NAME" | "LOW_EFFORT" | "DUPLICATE_PATTERN" | "GENERIC_RESPONSE",
+      flag: f.flag as
+        "FAKE_NAME" | "LOW_EFFORT" | "DUPLICATE_PATTERN" | "GENERIC_RESPONSE",
       reason: f.reason,
       excluded: false,
-    }))
+    })),
   );
 
   if (flagRecords.length > 0) {
@@ -98,7 +99,7 @@ export async function POST(
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ projectId: string }> }
+  { params }: { params: Promise<{ projectId: string }> },
 ) {
   const session = await auth();
   if (!session?.user) {
@@ -106,6 +107,15 @@ export async function GET(
   }
 
   const { projectId } = await params;
+
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, userId: session.user.id },
+    select: { id: true },
+  });
+
+  if (!project) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   const flags = await prisma.testerScreeningFlag.findMany({
     where: { projectId },
@@ -157,7 +167,7 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ projectId: string }> }
+  { params }: { params: Promise<{ projectId: string }> },
 ) {
   const session = await auth();
   if (!session?.user) {
@@ -165,20 +175,42 @@ export async function PATCH(
   }
 
   const { projectId } = await params;
-  const body = await req.json();
-  const { decisions } = body as {
-    decisions: { testerId: string; excluded: boolean }[];
-  };
 
-  // Update flags and applicant records
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, userId: session.user.id },
+    select: { id: true },
+  });
+
+  if (!project) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const body = await req.json().catch(() => null);
+  const decisions = (body as { decisions?: unknown } | null)?.decisions;
+
+  if (
+    !Array.isArray(decisions) ||
+    !decisions.every(
+      (d) =>
+        typeof d?.testerId === "string" && typeof d?.excluded === "boolean",
+    )
+  ) {
+    return NextResponse.json(
+      { error: "decisions must be an array of { testerId, excluded }" },
+      { status: 400 },
+    );
+  }
+
+  // Update flags and applicant records. Both writes are scoped by projectId so
+  // a tester id belonging to another project can't be touched.
   for (const decision of decisions) {
     await prisma.testerScreeningFlag.updateMany({
       where: { projectId, testerId: decision.testerId },
       data: { excluded: decision.excluded },
     });
 
-    await prisma.testerApplicant.update({
-      where: { id: decision.testerId },
+    await prisma.testerApplicant.updateMany({
+      where: { id: decision.testerId, projectId },
       data: { screeningExcluded: decision.excluded },
     });
   }
