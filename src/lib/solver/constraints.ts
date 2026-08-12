@@ -12,6 +12,7 @@ export interface TesterData {
   tgtbtOutlier: boolean;
   responses: Record<string, string>; // questionId -> responseValue
   isBlocklisted: boolean;
+  isScreeningExcluded: boolean;
   isGoldenTicket: boolean;
   goldenTicketPriority: number;
   activeTestCount: number;
@@ -53,7 +54,9 @@ export const DEFAULT_WEIGHTS: SolverConfig["weights"] = {
  * Pre-filter: remove blocklisted and hard-requirement-failing testers.
  */
 export function preFilter(testers: TesterData[]): TesterData[] {
-  return testers.filter((t) => !t.isBlocklisted && t.hardRequirementsMet);
+  return testers.filter(
+    (t) => !t.isBlocklisted && !t.isScreeningExcluded && t.hardRequirementsMet
+  );
 }
 
 /**
@@ -129,6 +132,7 @@ export function prepareTesterData(
     communityScore: number;
     tgtbtExtreme: boolean;
     tgtbtOutlier: boolean;
+    screeningExcluded: boolean;
     surveyResponses: { surveyQuestionId: string; responseValue: string }[];
   }[],
   hardRequirements: {
@@ -209,6 +213,7 @@ export function prepareTesterData(
       tgtbtOutlier: applicant.tgtbtOutlier,
       responses,
       isBlocklisted,
+      isScreeningExcluded: applicant.screeningExcluded,
       isGoldenTicket: gtPriority > 0,
       goldenTicketPriority: gtPriority,
       activeTestCount: activeTestEmails.has(applicant.email.toLowerCase())

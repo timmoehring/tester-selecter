@@ -133,7 +133,7 @@ export async function POST(
 
     await prisma.recruitmentSession.update({
       where: { projectId },
-      data: { currentStep: "selection" },
+      data: { currentStep: "screening" },
     });
 
     return NextResponse.json({ success: true });

@@ -82,7 +82,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async authorized({ auth, request }) {
       const isLoggedIn = !!auth?.user;
       const isOnDashboard = request.nextUrl.pathname.startsWith("/dashboard");
-      const isOnApi = request.nextUrl.pathname.startsWith("/api");
+      const isOnAuthApi = request.nextUrl.pathname.startsWith("/api/auth");
+      const isOnApi = request.nextUrl.pathname.startsWith("/api") && !isOnAuthApi;
       const isOnLogin = request.nextUrl.pathname === "/login";
 
       if (isOnDashboard || isOnApi) {

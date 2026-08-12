@@ -19,6 +19,7 @@ function makeTester(overrides: Partial<TesterData> = {}): TesterData {
     tgtbtOutlier: false,
     responses: {},
     isBlocklisted: false,
+    isScreeningExcluded: false,
     isGoldenTicket: false,
     goldenTicketPriority: 0,
     activeTestCount: 0,
@@ -66,6 +67,16 @@ describe("preFilter", () => {
     const testers = [
       makeTester({ id: "t1", hardRequirementsMet: false }),
       makeTester({ id: "t2", hardRequirementsMet: true }),
+    ];
+    const result = preFilter(testers);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("t2");
+  });
+
+  it("removes screening-excluded testers", () => {
+    const testers = [
+      makeTester({ id: "t1", isScreeningExcluded: true }),
+      makeTester({ id: "t2", isScreeningExcluded: false }),
     ];
     const result = preFilter(testers);
     expect(result).toHaveLength(1);
@@ -184,6 +195,7 @@ describe("prepareTesterData", () => {
       communityScore: 0.9,
       tgtbtExtreme: false,
       tgtbtOutlier: false,
+      screeningExcluded: false,
       surveyResponses: [
         { surveyQuestionId: "q1", responseValue: "Windows" },
         { surveyQuestionId: "q2", responseValue: "18-25" },
@@ -196,6 +208,7 @@ describe("prepareTesterData", () => {
       communityScore: 0.5,
       tgtbtExtreme: true,
       tgtbtOutlier: false,
+      screeningExcluded: false,
       surveyResponses: [
         { surveyQuestionId: "q1", responseValue: "Mac" },
         { surveyQuestionId: "q2", responseValue: "26-35" },
